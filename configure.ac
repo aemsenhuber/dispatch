@@ -1,5 +1,6 @@
 AC_PREREQ([2.69])
-AC_INIT([disptach], [0.1])
+AC_INIT([disptach], [0.1], , , [https://github.com/aemsenhuber/dispatch])
+AC_CONFIG_MACRO_DIRS([m4])
 AC_CONFIG_AUX_DIR([aux])
 AM_INIT_AUTOMAKE([foreign subdir-objects -Wall -Werror])
 
@@ -29,7 +30,7 @@ AC_FUNC_FORK
 AC_FUNC_MALLOC
 AC_FUNC_REALLOC
 AC_CHECK_FUNCS([dup2 sigprocmask signalfd])
-AC_CHECK_FUNCS([memmove strcasecmp strtol])
+AC_CHECK_FUNCS([memchr memmove memset strcasecmp strtol])
 
 # Output
 AC_CONFIG_HEADERS([config.h])

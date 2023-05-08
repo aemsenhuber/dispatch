@@ -16,7 +16,9 @@
  * limitations under the License.
  */
 
-#define _GNU_SOURCE
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,6 +26,7 @@
 #include <limits.h> /* For PIPE_BUF */
 #include <errno.h>
 
+#include <getopt.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -174,6 +177,34 @@ void send_signal( struct state* state, int sig ) {
 }
 
 int main( int argc, char** argv ) {
+	int help = 0;
+	int version = 0;
+
+	/* Parse command line */
+	/* ------------------ */
+
+	while ( 1 ) {
+		int opt = getopt( argc, argv, "hv" );
+		if ( opt < 0 ) break;
+		if ( opt == '?' ) exit( 2 );
+		if ( opt == 'h' ) help++;
+		if ( opt == 'v' ) version++;
+	}
+
+	if ( version ) {
+#ifdef PACKAGE_STRING
+		fputs( PACKAGE_STRING "\n", stderr );
+#endif
+#ifdef PACKAGE_URL
+		fputs( PACKAGE_URL "\n", stderr );
+#endif
+		fputs( "\n", stderr );
+		fputs( "Copyright 2023 Alexandre Emsenhuber\n", stderr );
+		fputs( "Licensed under the Apache License, Version 2.0\n", stderr );
+
+		exit( EXIT_SUCCESS );
+	}
+
 	struct state state;
 	state.next = 0;
 	state.end = 0;
@@ -189,14 +220,30 @@ int main( int argc, char** argv ) {
 
 	if ( getenv( "SLURM_JOB_ID" ) != NULL ) {
 		/* We are in SLURM mode */
-		if ( argc < 4 ) {
-			fprintf( stderr, "Usage: %s <offset_array> <offset_index> <num> <command> [options] ...\n", argv[0] );
-			return 2;
+		if ( help || argc - optind < 4 ) {
+			fprintf( stderr, "Usage: %s [options] <offset_array> <offset_index> <num> <command> [args ...]\n", argv[0] );
+
+			if ( help ) {
+				fputs( "\n", stderr );
+				fputs( "Arguments:\n", stderr );
+				fputs( "offset_array   Value of the first SLURM array instance being executed\n", stderr );
+				fputs( "offset_index   Value of the first mapped index\n", stderr );
+				fputs( "num            Number of instance to execute per SLURM array job\n", stderr );
+				fputs( "command [args] Command to execute; the index will be passed as last argument\n", stderr );
+				fputs( "\n", stderr );
+				fputs( "Options:\n", stderr );
+				fputs( "-h  Display this help message\n", stderr );
+				fputs( "-v  Display version information and exit\n", stderr );
+
+				exit( EXIT_SUCCESS );
+			} else {
+				exit( 2 );
+			}
 		}
 
-		const long offset_array = strtol( argv[ 1 ], NULL, 0 );
-		const long offset_index = strtol( argv[ 2 ], NULL, 0 );
-		const long num = strtol( argv[ 3 ], NULL, 0 );
+		const long offset_array = strtol( argv[ optind + 0 ], NULL, 0 );
+		const long offset_index = strtol( argv[ optind + 1 ], NULL, 0 );
+		const long num = strtol( argv[ optind + 2 ], NULL, 0 );
 		const long task = strtol( getenv( "SLURM_ARRAY_TASK_ID" ), NULL, 0 );
 		const long conc = strtol( getenv( "SLURM_CPUS_ON_NODE" ), NULL, 0 );
 
@@ -204,21 +251,37 @@ int main( int argc, char** argv ) {
 		state.end = ( offset_array + task + 1 ) * num + offset_index - 1;
 		set_n_conc( &state, conc );
 
-		shift = 4;
+		shift = optind + 3;
 		monitor_stdin = 0;
 	} else {
-		if ( argc < 5 ) {
-			fprintf( stderr, "Usage: %s <start> <stop> <num> <command> [options] ...\n", argv[0] );
-			return 2;
+		if ( help || argc - optind < 4 ) {
+			fprintf( stderr, "Usage: %s [options] <start> <stop> <num> <command> [args ...]\n", argv[0] );
+
+			if ( help ) {
+				fputs( "\n", stderr );
+				fputs( "Arguments:\n", stderr );
+				fputs( "start          First index\n", stderr );
+				fputs( "stop           Last index (can be modified with end/e interactive command)\n", stderr );
+				fputs( "num            Concurrency number (can be modified with conc/n interactive command)\n", stderr );
+				fputs( "command [args] Command to execute; the index will be passed as last argument\n", stderr );
+				fputs( "\n", stderr );
+				fputs( "Options:\n", stderr );
+				fputs( "-h  Display this help message\n", stderr );
+				fputs( "-v  Display version information and exit\n", stderr );
+
+				exit( EXIT_SUCCESS );
+			} else {
+				exit( 2 );
+			}
 		}
 
-		state.next = strtol( argv[ 1 ], NULL, 0 );
-		state.end = strtol( argv[ 2 ], NULL, 0 );
+		state.next = strtol( argv[ optind + 0 ], NULL, 0 );
+		state.end = strtol( argv[ optind + 1 ], NULL, 0 );
 
-		const long conc = strtol( argv[ 3 ], NULL, 0 );
+		const long conc = strtol( argv[ optind + 2 ], NULL, 0 );
 		set_n_conc( &state, conc );
 
-		shift = 4;
+		shift = optind + 3;
 		monitor_stdin = 1;
 	}
 
@@ -476,4 +539,6 @@ int main( int argc, char** argv ) {
 	free( args );
 	free( state.pollfds );
 	free( state.tasks );
+
+	exit( EXIT_SUCCESS );
 }
