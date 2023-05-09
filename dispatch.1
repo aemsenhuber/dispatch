@@ -1,0 +1,93 @@
+.TH DISPATCH "1" "May 2023" "Alexandre Emsenhuber"
+
+.SH Name
+.PP
+\fBdispatch\fP - Run a sequence of commands with a determined concurrency
+
+.SH Synopsis
+.PP
+Normal mode: \fB\fCdispatch <start> <end> <conc> <command> [options...]\fR
+.br
+\fISlurm\fP mode: \fB\fCdispatch <offset_array> <offset_index> <num> <command> [options...]\fR
+
+.SH Description
+.PP
+\fBdispatch\fP has two modes:
+.br
+- In normal mode, the user provides the start and end numbers of the sequence, along with the number of elements to run concurrently.
+.br
+- In \fIslurm\fP mode, the user provides the start numbers of both the Slurm array and sequence, plus the number of elements that are to be run by each instance of the array job.
+
+.PP
+\fISlurm\fP mode is activated if the \fB\fCSLURM_JOB_ID\fR environment variable is present.
+\fISlurm\fP mode is intended to allow running more elements that is normally permitted by Slurm configuration,
+while at the same time allowing for elements to run concurrently (for instance when hyperthreading is enabled).
+
+.PP
+For each element, \fBdispatch\fP executes the command and arguments provided in its call, with the element index provided as last argument; that is
+.br
+\fB\fCcommand [options...] <index>\fR
+
+.SH Arguments
+.PP
+In normal mode, the arguments are:
+.br
+- \fB\fCstart\fR: The index of the first element to run
+.br
+- \fB\fCend\fR: The index of the last element to run
+.br
+- \fB\fCconc\fR: The number of elements to run concurrently
+.br
+- \fB\fCcommand [options...]\fR: The command to run for each element; the index will be appended as last argument
+
+.PP
+In \fIslurm\fP mode, the arguments are:
+.br
+- \fB\fCoffset_array\fR: The index of SLURM array job that will call dispatch
+.br
+- \fB\fCoffset_index\fR: The index of the first element to run
+.br
+- \fB\fCnum\fR: The number of elements to execute by each SLURM array job instance
+.br
+- \fB\fCcommand [options...]\fR: The command to run for each element; the index will be appended as last argument
+
+.PP
+In \fIslurm\fP mode, the number of elements to run concurrently is retrived from the \fB\fCSLURM_CPUS_ON_NODE\fR environment variable,
+while the array index is retrived from the \fB\fCSLURM_ARRAY_TASK_ID\fR environment variable. The correspondance between Slurm job array index and sequence elements is:
+.br
+- Slurm array index \fB\fCoffset_array\fR will run indexes from \fB\fCoffset_index\fR to \fB\fCoffset_index + num - 1\fR\&.
+.br
+- Slurm array index \fB\fCoffset_array + 1\fR will run indexes from \fB\fCoffset_index + num\fR to \fB\fCoffset_index + (2 * num) - 1\fR\&.
+.br
+- and so on
+
+.SH Run-time
+.PP
+In normal mode, \fBdispatch\fP accepts basic commands in the standard input to modify some of the values provided in arguments. These are:
+.br
+- \fB\fCend <value>\fR or \fB\fCe <value>\fR: override the value of the \fB\fCend\fR argument of normal mode; the value must not be lower than the index of the last element that was started
+.br
+- \fB\fCconc <value>\fR or \fB\fCc <value>\fR: override the value of the \fB\fCconc\fR argument of normal mode; such that no new element is started while the number . Elements already running are never terminated.
+
+.SH Output
+.PP
+\fBdispatch\fP forwards to output of each element to the caller, with each line prepended with \fB\fCChild <index>:\fR, where \fB\fC<index>\fR is the index of the element that generated the output.
+
+.SH Example
+.PP
+Calling \fB\fCdispatch 12 18 1 echo test\fR (normal mode) will produce:
+
+.PP
+.RS
+
+.nf
+Child 12: test 12
+Child 13: test 13
+Child 14: test 14
+Child 15: test 15
+Child 16: test 16
+Child 17: test 17
+Child 18: test 18
+
+.fi
+.RE

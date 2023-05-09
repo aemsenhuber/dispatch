@@ -18,7 +18,8 @@ _Slurm_ mode is activated if the `SLURM_JOB_ID` environment variable is present.
 _Slurm_ mode is intended to allow running more elements that is normally permitted by Slurm configuration,
 while at the same time allowing for elements to run concurrently (for instance when hyperthreading is enabled).
 
-For each element, **dispatch** executes the command and arguments provided in its call, with the element index provided as last argument.
+For each element, **dispatch** executes the command and arguments provided in its call, with the element index provided as last argument; that is
+`command [options...] <index>`
 
 ## Arguments
 
@@ -42,15 +43,15 @@ while the array index is retrived from the `SLURM_ARRAY_TASK_ID` environment var
 
 ## Run-time
 
-**dispatch** accepted basic commands in the standard input to modify some of the values provided in arguments. These are:
+In normal mode, **dispatch** accepts basic commands in the standard input to modify some of the values provided in arguments. These are:
 - `end <value>` or `e <value>`: override the value of the `end` argument of normal mode; the value must not be lower than the index of the last element that was started
 - `conc <value>` or `c <value>`: override the value of the `conc` argument of normal mode; such that no new element is started while the number . Elements already running are never terminated.
 
 ## Output
 
-**dispatch** forwards to output of each element to the caller, with each line prepended with `Child <n>:`, where `<n>` is the index of the element that generated the output.
+**dispatch** forwards to output of each element to the caller, with each line prepended with `Child <index>:`, where `<index>` is the index of the element that generated the output.
 
-## Examples
+## Example
 
 Calling `dispatch 12 18 1 echo test` (normal mode) will produce:
 ```
