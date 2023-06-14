@@ -44,23 +44,18 @@ int run_command( char* const* args, int* fd, sigset_t* mask )  {
 	int piperes = pipe( pipefds );
 	if ( piperes == -1 ) {
 		perror( "pipe" );
-		return -3;
+		return -2;
 	}
 
 	pid_t pid = fork();
 	if ( pid == -1 ) {
 		/* error */
+		perror( "fork" );
 		close( pipefds[0] );
 		close( pipefds[1] );
 		return -1;
 	} else if ( pid == 0 ) {
 		/* child */
-
-		/* Reset signal mask */
-		if ( sigprocmask( SIG_UNBLOCK, mask, NULL ) == -1 ) {
-			perror( "sigprocmask" );
-			return 2;
-		}
 
 		/* now close all the standard streams, as we will redirect them */
 		close( STDIN_FILENO );
@@ -81,6 +76,12 @@ int run_command( char* const* args, int* fd, sigset_t* mask )  {
 
 		close( pipefds[0] );
 		close( pipefds[1] );
+
+		/* Reset signal mask */
+		if ( sigprocmask( SIG_UNBLOCK, mask, NULL ) == -1 ) {
+			perror( "sigprocmask" );
+			exit( 1 );
+		}
 
 		/* the following never returns, except if an error occurred */
 		execvp( name, args );
